@@ -168,9 +168,10 @@ def main():
 
         
         print(f"Entrenamiento numero {i+1}")
+        bs = 384
         print("batch_size = ", bs)
         ini = time.time()
-        Historys.append(model.fit(X_train, Y_train, batch_size=384, epochs=25, validation_split=0.1,callbacks=my_callbacks))
+        Historys.append(model.fit(X_train, Y_train, batch_size=bs, epochs=25, validation_split=0.1,callbacks=my_callbacks))
         fin = time.time()
         t = fin - ini
         test_scores = model.evaluate(X_test, Y_test, verbose=2)
