@@ -85,7 +85,7 @@ def main():
     X_train, X_test, Y_train, Y_test = cargar_y_preprocesar_cifar10()
     
     Historys = []
-    for i in range(3):
+    for i in range(4):
         
         model = keras.Sequential(
             [
@@ -111,8 +111,9 @@ def main():
 
         
         print(f"Entrenamiento numero {i+1}")
-        Historys.append(model.fit(X_train, Y_train, batch_size=32, epochs=50, validation_split=0.1,callbacks=my_callbacks))
+        Historys.append(model.fit(X_train, Y_train, batch_size=i*100 + 100, epochs=50, validation_split=0.1,callbacks=my_callbacks))
         test_scores = model.evaluate(X_test, Y_test, verbose=2)
+        print("batch_size = ", i*100 + 100)
         print("Test loss:", test_scores[0])
         print("Test accuracy:", test_scores[1])
         
