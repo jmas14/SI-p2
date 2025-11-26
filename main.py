@@ -146,32 +146,21 @@ def main():
     Historys = []
     Barras = []
     for i in range(5):
-        
-        ''''
         model = keras.Sequential(
             [
                 keras.Input(X_train[0].shape),
-                layers.Dense(48, activation="sigmoid", name="layer1"),
-                layers.Dense(10, activation="softmax", name="layer2"),
+                layers.Dense(16, activation="swish",kernel_initializer="glorot_uniform", name="layer1"),
+                layers.Dense(32, activation="swish",kernel_initializer="glorot_uniform", name="layer2"),
+                layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer3"),
+                layers.Dense(16, activation="swish",kernel_initializer="glorot_uniform", name="layer4"),
+                layers.Dense(32, activation="swish",kernel_initializer="glorot_uniform", name="layer5"),
+                layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer6"),
+                layers.Dense(16, activation="swish",kernel_initializer="glorot_uniform", name="layer7"),
+                layers.Dense(32, activation="swish",kernel_initializer="glorot_uniform", name="layer8"),
+                layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer9"),
+                layers.Dense(10, activation="softmax", name="layer10"),
             ]
         )
-        '''
-        model = keras.Sequential()
-        model.add(keras.Input(shape=X_train[0].shape))
-        if i == 0:
-            model.add(layers.Dense(48, activation="relu", kernel_initializer="he_normal", name="layer1"))
-            pass
-        elif i == 1:
-            model.add(layers.Dense(48, activation=keras.activations.hard_sigmoid,kernel_initializer="glorot_uniform", name="layer1"))
-        elif i == 2:
-            model.add(layers.Dense(48, activation="relu6",kernel_initializer="he_normal", name="layer1"))
-        elif i == 3:
-            model.add(layers.Dense(48, activation="tanh",kernel_initializer="glorot_uniform", name="layer1"))
-        elif i == 4:
-            model.add(layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer1"))
-    
-        model.add(layers.Dense(10, activation="softmax", name="layer2"))
-        
         
         model.compile(
             optimizer="Adam",
