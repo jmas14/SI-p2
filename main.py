@@ -5,14 +5,18 @@ import logging, os
 logging.disable(logging.WARNING)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-import keras
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers, activations
 from keras import layers
 from keras import ops
+from keras import activations
+from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 import numpy as np
 from random import sample
-from keras.utils import to_categorical
 import time
+from funciones_activacion import *
 
 def show_image(imagen, titulo):
     plt.figure()
@@ -135,7 +139,6 @@ def cargar_y_preprocesar_cifar10():
 
     return X_train, X_test, Y_train, Y_test
 
-
 def main():
         
     X_train, X_test, Y_train, Y_test = cargar_y_preprocesar_cifar10()
@@ -144,6 +147,7 @@ def main():
     Barras = []
     for i in range(5):
         
+        ''''
         model = keras.Sequential(
             [
                 keras.Input(X_train[0].shape),
@@ -151,7 +155,24 @@ def main():
                 layers.Dense(10, activation="softmax", name="layer2"),
             ]
         )
+        '''
+        model = keras.Sequential()
+        model.add(keras.Input(shape=X_train[0].shape))
+        if i == 0:
+            model.add(layers.Dense(48, activation="relu", kernel_initializer="he_normal", name="layer1"))
+            pass
+        elif i == 1:
+            model.add(layers.Dense(48, activation=keras.activations.hard_sigmoid,kernel_initializer="glorot_uniform", name="layer1"))
+        elif i == 2:
+            model.add(layers.Dense(48, activation="relu6",kernel_initializer="he_normal", name="layer1"))
+        elif i == 3:
+            model.add(layers.Dense(48, activation="tanh",kernel_initializer="glorot_uniform", name="layer1"))
+        elif i == 4:
+            model.add(layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer1"))
     
+        model.add(layers.Dense(10, activation="softmax", name="layer2"))
+        
+        
         model.compile(
             optimizer="Adam",
             loss="categorical_crossentropy",
