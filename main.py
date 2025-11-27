@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from random import sample
 import time
-from funciones_activacion import *
 
 def show_image(imagen, titulo):
     plt.figure()
@@ -151,14 +150,10 @@ def main():
                 keras.Input(X_train[0].shape),
                 layers.Dense(16, activation="swish",kernel_initializer="glorot_uniform", name="layer1"),
                 layers.Dense(32, activation="swish",kernel_initializer="glorot_uniform", name="layer2"),
-                layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer3"),
-                layers.Dense(16, activation="swish",kernel_initializer="glorot_uniform", name="layer4"),
-                layers.Dense(32, activation="swish",kernel_initializer="glorot_uniform", name="layer5"),
-                layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer6"),
-                layers.Dense(16, activation="swish",kernel_initializer="glorot_uniform", name="layer7"),
-                layers.Dense(32, activation="swish",kernel_initializer="glorot_uniform", name="layer8"),
-                layers.Dense(48, activation="swish",kernel_initializer="glorot_uniform", name="layer9"),
-                layers.Dense(10, activation="softmax", name="layer10"),
+                layers.Dense(64, activation="swish",kernel_initializer="glorot_uniform", name="layer3"),
+                layers.Dense(254, activation="swish",kernel_initializer="glorot_uniform", name="layer4"),
+                layers.Dense(128, activation="swish",kernel_initializer="glorot_uniform", name="layer5"),
+                layers.Dense(10, activation="softmax", name="layer6"),
             ]
         )
         
