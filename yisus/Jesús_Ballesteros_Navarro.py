@@ -186,6 +186,8 @@ def entrenamiento_ES(X_train, Y_train, X_test, Y_test, patience=5, max_epochs=10
             layers.Dense(48, activation="sigmoid", input_shape=(3072,)),
             layers.Dense(10, activation="softmax")
         ])
+
+        model.summary()
         
         model.compile(
             optimizer="adam",
@@ -253,6 +255,8 @@ def entrenamiento_batch_size(X_train, Y_train, X_test, Y_test, batch_size, patie
             layers.Dense(48, activation="sigmoid", input_shape=(3072,)),
             layers.Dense(10, activation="softmax")
         ])
+
+        model.summary()
         
         model.compile(
             optimizer="adam",
@@ -286,8 +290,7 @@ def entrenamiento_batch_size(X_train, Y_train, X_test, Y_test, batch_size, patie
         tiempos.append(tiempo)
         all_histories.append(history.history)
         
-        print(f"epochs={len(history.history['loss'])}, test_acc={test_acc:.4f}, tiempo={tiempo:.1f}s")
-    
+       
     # Promedios
     avg_test_acc = np.mean(test_accs)
     avg_test_loss = np.mean(test_losses)
@@ -318,6 +321,8 @@ def entrenamiento_activation(X_train, Y_train, X_test, Y_test, activation, patie
             layers.Dense(10, activation="softmax")
         ])
         
+        model.summary()
+
         model.compile(
             optimizer="adam",
             loss="categorical_crossentropy",
@@ -384,11 +389,14 @@ def entrenamiento_neurons(X_train, Y_train, X_test, Y_test, neurons, activation=
             layers.Dense(10, activation="softmax")
         ])
         
+        model.summary()
+
         model.compile(
             optimizer="adam",
             loss="categorical_crossentropy",
             metrics=["accuracy"]
         )
+        
         
         early_stop = callbacks.EarlyStopping(
             monitor='val_loss',
@@ -430,6 +438,78 @@ def entrenamiento_neurons(X_train, Y_train, X_test, Y_test, neurons, activation=
         'tiempo': avg_tiempo,
         'history': avg_history
     }
+
+def entrenamiento_arquitectura(X_train, Y_train, X_test, Y_test, arquitectura, arquitectura_nombre, activation='relu', patience=5, batch_size=32, max_epochs=100, num_repeticiones=5): #Entrenamiento por capas con lo optimizado anteriormente, mlp6
+    test_accs = []
+    test_losses = []
+    epochs_trained = []
+    tiempos = []
+    all_histories = []
+    
+    for rep in range(num_repeticiones):
+        # Crear modelo con arquitectura parametrizada
+        model = keras.Sequential()
+        
+        # Primera capa
+        model.add(layers.Dense(arquitectura[0], activation=activation, input_shape=(3072,)))
+        
+        # Capas ocultas adicionales
+        for neuronas in arquitectura[1:]:
+            model.add(layers.Dense(neuronas, activation=activation))
+        
+        # Capa de salida
+        model.add(layers.Dense(10, activation="softmax"))
+        
+        model.compile(
+            optimizer="adam",
+            loss="categorical_crossentropy",
+            metrics=["accuracy"]
+        )
+        
+        early_stop = callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=patience,
+            restore_best_weights=True,
+            verbose=1
+        )
+        
+        inicio = time.time()
+        history = model.fit(
+            X_train, Y_train,
+            batch_size=batch_size,
+            epochs=max_epochs,
+            validation_split=0.1,
+            callbacks=[early_stop],
+            verbose=1
+        )
+        tiempo = time.time() - inicio
+        
+        test_loss, test_acc = model.evaluate(X_test, Y_test, verbose=0)
+        
+        test_accs.append(test_acc)
+        test_losses.append(test_loss)
+        epochs_trained.append(len(history.history['loss']))
+        tiempos.append(tiempo)
+        all_histories.append(history.history)
+
+    # Promedios
+    avg_test_acc = np.mean(test_accs)
+    avg_test_loss = np.mean(test_losses)
+    avg_epochs = np.mean(epochs_trained)
+    avg_tiempo = np.mean(tiempos)
+    
+    avg_history = promediar_histories(all_histories)
+    
+    return {
+        'arquitectura': arquitectura_nombre,
+        'arquitectura_list': arquitectura,
+        'test_acc': avg_test_acc,
+        'test_loss': avg_test_loss,
+        'epochs': avg_epochs,
+        'tiempo': avg_tiempo,
+        'history': avg_history
+    }
+
 
 ################################################################
 #                            MLP
@@ -584,6 +664,160 @@ def mlp5():
     
     return resultados, mejor
 
+def mlp6():  
+    X_train, Y_train, X_test, Y_test = cargar_y_preprocesar_cifar10()
+    
+    # Arquitecturas a probar
+    # Formato: (lista_neuronas, nombre_descriptivo)
+    arquitecturas = [
+    # 1 CAPA OCULTA (comparar tamaños)
+        ([128], "1 capa: 128"),
+        ([256], "1 capa: 256"),
+        
+        # 2 CAPAS OCULTAS (diferentes distribuciones)
+        ([128, 64], "2 capas: 128-64"),
+        ([256, 128], "2 capas: 256-128"),
+        ([128, 128], "2 capas: 128-128"),
+        
+        # 3 CAPAS OCULTAS (explorar profundidad)
+        ([128, 64, 32], "3 capas: 128-64-32"),
+        ([256, 128, 64], "3 capas: 256-128-64"),
+        ([96, 96, 96], "3 capas: 96-96-96")
+    ]
+    
+    mejor_patience = 5         
+    mejor_batch_size = 128     
+    mejor_activation = 'relu'   
+    
+    resultados = []
+    
+    for arq_list, arq_nombre in arquitecturas:
+        resultado = entrenamiento_arquitectura(
+            X_train, Y_train, X_test, Y_test,
+            arquitectura=arq_list,
+            arquitectura_nombre=arq_nombre,
+            activation=mejor_activation,
+            patience=mejor_patience,
+            batch_size=mejor_batch_size,
+            num_repeticiones=5
+        )
+        resultados.append(resultado)
+
+    # Mejor configuración
+    mejor = max(resultados, key=lambda x: x['test_acc'])
+    
+    # Gráficas
+    plot_comparacion(resultados, 'arquitectura', 'Arquitectura', 'mlp6_comparacion_arquitectura.png')
+    plot_history(mejor['history'])
+    
+    return resultados, mejor
+
+def mlp7():
+    mejor_patience = 5              
+    mejor_batch_size = 128          
+    mejor_activation = 'elu'        
+    mejor_arquitectura = [256, 128] 
+ 
+    X_train, Y_train, X_test, Y_test = cargar_y_preprocesar_cifar10()
+
+    num_repeticiones = 5
+    
+    test_accs = []
+    test_losses = []
+    epochs_trained = []
+    tiempos = []
+    all_histories = []
+    
+    for rep in range(num_repeticiones):
+        model = keras.Sequential()
+        
+        # Primera capa
+        model.add(layers.Dense(mejor_arquitectura[0], activation=mejor_activation, input_shape=(3072,)))
+        
+        # Capas ocultas adicionales
+        for n in mejor_arquitectura[1:]:
+            model.add(layers.Dense(n, activation=mejor_activation))
+        
+        # Capa de salida
+        model.add(layers.Dense(10, activation="softmax"))
+        
+        model.summary()
+
+        model.compile(
+            optimizer="adam",
+            loss="categorical_crossentropy",
+            metrics=["accuracy"]
+        )
+        
+        early_stop = callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=mejor_patience,
+            restore_best_weights=True,
+            verbose=1
+        )
+        
+        inicio = time.time()
+        history = model.fit(
+            X_train, Y_train,
+            batch_size=mejor_batch_size,
+            epochs=100,
+            validation_split=0.1,
+            callbacks=[early_stop],
+            verbose=1
+        )
+        tiempo = time.time() - inicio
+        
+        test_loss, test_acc = model.evaluate(X_test, Y_test, verbose=0)
+        
+        test_accs.append(test_acc)
+        test_losses.append(test_loss)
+        epochs_trained.append(len(history.history['loss']))
+        tiempos.append(tiempo)
+        all_histories.append(history.history)
+ 
+
+    avg_test_acc = np.mean(test_accs)
+    std_test_acc = np.std(test_accs)
+    max_test_acc = max(test_accs)
+    min_test_acc = min(test_accs)
+    avg_test_loss = np.mean(test_losses)
+    avg_epochs = np.mean(epochs_trained)
+    avg_tiempo = np.mean(tiempos)
+    avg_history = promediar_histories(all_histories)
+    
+
+    mlp1_acc = 0.4219    
+    mejora_absoluta = (avg_test_acc - mlp1_acc) * 100
+    mejora_relativa = (mejora_absoluta / (mlp1_acc * 100)) * 100
+       
+    mlp1_tiempo = 47.0      
+    mlp1_epochs = 10       
+    mlp1_loss = 1.6169 
+    
+    resultados_comparacion = [
+        {
+            'modelo': 'MLP1\n(Baseline)',
+            'test_acc': mlp1_acc,
+            'test_loss': mlp1_loss,
+            'epochs': mlp1_epochs,
+            'tiempo': mlp1_tiempo
+        },
+        {
+            'modelo': 'MLP7\n(Optimizado)',
+            'test_acc': avg_test_acc,
+            'test_loss': avg_test_loss,
+            'epochs': avg_epochs,
+            'tiempo': avg_tiempo
+        }
+    ]
+    
+    #Gráficas
+    plot_history(avg_history)
+    plot_comparacion(resultados_comparacion, 'modelo', 'Modelo', 'mlp7_comparacion_baseline.png')
+    
+    Y_pred = model.predict(X_test, verbose=0)
+    plot_confusion_matrix(Y_test, Y_pred)
+
 #main
 if __name__ == "__main__":
     cargar_y_preprocesar_cifar10()
@@ -594,9 +828,9 @@ if __name__ == "__main__":
     print("4: MLP4")
     print("5: MLP5")
     print("6: MLP6")
-    print("7: MLP7\n")
+    print("7: MLP7")
     
-    eleccion = input()
+    eleccion = input("Opción:")
     match eleccion:
         case '1':
             mlp1()
@@ -609,10 +843,8 @@ if __name__ == "__main__":
         case '5':
             mlp5()
         case '6':
-            print("noimp")
-            #mlp6()
+            mlp6()
         case '7':
-            print("noimp")
-            #mlp7()
+            mlp7()
         case _:
             print(f"Opción '{eleccion}' no reconocida.")
