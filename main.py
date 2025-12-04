@@ -65,62 +65,80 @@ def plot_Historys(Historys):
 
     plt.tight_layout()
     plt.show()
-    
-import matplotlib.pyplot as plt
-import numpy as np
 
-import matplotlib.pyplot as plt
-import numpy as np
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-def plot_Barras(datos):
-    # datos = lista de tuplas (accuracy, batch_size, time)
-    
-    # Ordenar los datos por batch_size
-    datos = sorted(datos, key=lambda x: x[1])
+def plot_Barras(datos, labels, nombre_parametro, titulo="Resultados del experimento"):
+    """
+    datos: lista de tuplas (accuracy, time)
+    labels: lista de textos que describen el valor del parámetro en cada experimento
+    nombre_parametro: etiqueta para el eje X
+    titulo: título de la gráfica
+    """
 
     accuracies = [d[0] for d in datos]
-    batch_sizes = [d[1] for d in datos]
-    tiempos = [d[2] for d in datos]
+    tiempos = [d[1] for d in datos]
 
     n = len(datos)
-
-    # Posiciones base en el eje X
     x = np.arange(n)
-
-    # Ancho de cada barra
     width = 0.35
 
-    plt.figure(figsize=(12, 6))
+    fig, ax1 = plt.subplots(figsize=(12, 6))
 
-    # Barras de accuracy
-    plt.bar(x - width/2, accuracies, width, label='Test Accuracy', alpha=0.7)
+    # === EJE IZQUIERDO → Tiempo (NARANJA) ===
+    barras_tiempo = ax1.bar(
+        x - width/2,
+        tiempos,
+        width,
+        label="Tiempo (s)",
+        alpha=0.7,
+        color="tab:orange"
+    )
+    ax1.set_ylabel("Tiempo (s)")
+    ax1.set_ylim(0, max(tiempos) * 1.2)
 
-    # Barras de tiempo
-    plt.bar(x + width/2, tiempos, width, label='Tiempo (s)', alpha=0.7)
+    # === EJE DERECHO → Accuracy (MORADO) ===
+    ax2 = ax1.twinx()
+    barras_acc = ax2.bar(
+        x + width/2,
+        accuracies,
+        width,
+        label="Accuracy",
+        alpha=0.7,
+        color="purple"
+    )
+    ax2.set_ylabel("Accuracy")
+    ax2.set_ylim(0, 1)
 
-    # Etiquetas
-    plt.xticks(x, batch_sizes)
-    plt.xlabel("Tamaño del batch")
-    plt.title("Accuracy y tiempo de entrenamiento según Batch Size")
-    plt.ylabel("Valor")
+    # === Etiquetas eje X ===
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(labels)
+    ax1.set_xlabel(nombre_parametro)
 
-    # Mostrar valores encima de las barras
-    for i in range(n):
-        plt.text(x[i] - width/2, accuracies[i] + 0.001,
-                 f"{accuracies[i]:.3f}", ha='center', va='bottom', fontsize=8)
+    # === Título ===
+    plt.title(titulo)
 
-        plt.text(x[i] + width/2, tiempos[i] + 0.001,
-                 f"{tiempos[i]:.2f}", ha='center', va='bottom', fontsize=8)
+    # === Etiquetas numéricas ===
+    for rect, t in zip(barras_tiempo, tiempos):
+        ax1.text(rect.get_x() + rect.get_width()/2,
+                 t + max(tiempos)*0.02,
+                 f"{t:.2f}",
+                 ha='center', va='bottom', fontsize=9)
 
-    plt.legend()
-    plt.grid(axis='y', linestyle='--', alpha=0.4)
+    for rect, acc in zip(barras_acc, accuracies):
+        ax2.text(rect.get_x() + rect.get_width()/2,
+                 acc + 0.02,
+                 f"{acc:.3f}",
+                 ha='center', va='bottom', fontsize=9)
 
-    plt.tight_layout()
+    # === Leyendas combinadas ===
+    h1, l1 = ax1.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax1.legend(h1 + h2, l1 + l2, loc="upper right")
+
+    ax1.grid(axis='y', linestyle='--', alpha=0.4)
+    fig.tight_layout()
     plt.show()
-
+    
+    
 def cargar_y_preprocesar_cifar10():
     (X_train, Y_train), (X_test, Y_test) = keras.datasets.cifar10.load_data()
 
@@ -139,52 +157,120 @@ def cargar_y_preprocesar_cifar10():
     return X_train, X_test, Y_train, Y_test
 
 def main():
-        
+
     X_train, X_test, Y_train, Y_test = cargar_y_preprocesar_cifar10()
-    
+
     Historys = []
     Barras = []
+    num_neuronas = ["400x300x200x50x30x20",
+                    "150x200x300x200x100x50",
+                    "50x60x90x200x300x300",
+                    "100x200x300x200x150x50",
+                    "300x150x50x50x150x300"
+                    ]
     for i in range(5):
-        model = keras.Sequential(
-            [
-                keras.Input(X_train[0].shape),
-                layers.Dense(16, activation="swish",kernel_initializer="glorot_uniform", name="layer1"),
-                layers.Dense(32, activation="swish",kernel_initializer="glorot_uniform", name="layer2"),
-                layers.Dense(64, activation="swish",kernel_initializer="glorot_uniform", name="layer3"),
-                layers.Dense(254, activation="swish",kernel_initializer="glorot_uniform", name="layer4"),
-                layers.Dense(128, activation="swish",kernel_initializer="glorot_uniform", name="layer5"),
-                layers.Dense(10, activation="softmax", name="layer6"),
-            ]
-        )
-        
+        if i == 0:
+            model = keras.Sequential(
+                [
+                    keras.Input(X_train[0].shape),
+                    layers.Dense(400, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer1"),
+                    layers.Dense(300, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer2"),
+                    layers.Dense(200, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer3"),
+                    layers.Dense(50,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer4"),
+                    layers.Dense(30,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer5"),
+                    layers.Dense(20,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer6"),
+                    layers.Dense(10,  activation="softmax", name="layer7"),
+                ]
+            )
+
+        if i == 1:
+            model = keras.Sequential(
+                [
+                    keras.Input(X_train[0].shape),
+                    layers.Dense(150, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer1"),
+                    layers.Dense(200, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer2"),
+                    layers.Dense(300, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer3"),
+                    layers.Dense(200, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer4"),
+                    layers.Dense(100, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer5"),
+                    layers.Dense(50,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer6"),
+                    layers.Dense(10, activation="softmax", name="layer7"),
+                ]
+            )
+
+        if i == 2:
+            model = keras.Sequential(
+                [
+                    keras.Input(X_train[0].shape),
+                    layers.Dense(50,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer1"),
+                    layers.Dense(60,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer2"),
+                    layers.Dense(90,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer3"),
+                    layers.Dense(200, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer4"),
+                    layers.Dense(300, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer5"),
+                    layers.Dense(300, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer6"),
+                    layers.Dense(10, activation="softmax", name="layer7"),
+                ]
+            )
+
+        if i == 3:
+            model = keras.Sequential(
+                [
+                    keras.Input(X_train[0].shape),
+                    layers.Dense(100, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer1"),
+                    layers.Dense(200, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer2"),
+                    layers.Dense(300, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer3"),
+                    layers.Dense(200, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer4"),
+                    layers.Dense(150, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer5"),
+                    layers.Dense(50,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer6"),
+                    layers.Dense(10, activation="softmax", name="layer7"),
+                ]
+            )
+
+        if i == 4:
+            model = keras.Sequential(
+                [
+                    keras.Input(X_train[0].shape),
+                    layers.Dense(300, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer1"),
+                    layers.Dense(150, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer2"),
+                    layers.Dense(50,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer3"),
+                    layers.Dense(50,  activation="sigmoid", kernel_initializer="glorot_uniform", name="layer4"),
+                    layers.Dense(150, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer5"),
+                    layers.Dense(300, activation="sigmoid", kernel_initializer="glorot_uniform", name="layer6"),
+                    layers.Dense(10, activation="softmax", name="layer7"),
+                ]
+            )
+
         model.compile(
             optimizer="Adam",
             loss="categorical_crossentropy",
             metrics=["accuracy"],
         )
-    
+
         model.summary()
 
         my_callbacks = [
-            keras.callbacks.EarlyStopping(patience=5, monitor="accuracy", min_delta=0.01),
+            keras.callbacks.EarlyStopping(patience=5, monitor="accuracy", min_delta=0.001),
             keras.callbacks.ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.keras'),
             keras.callbacks.TensorBoard(log_dir='./logs'),
         ]
 
-        
+
         print(f"Entrenamiento numero {i+1}")
-        bs = 384
-        print("batch_size = ", bs)
         ini = time.time()
-        Historys.append(model.fit(X_train, Y_train, batch_size=bs, epochs=25, validation_split=0.1,callbacks=my_callbacks))
+        Historys.append(model.fit(X_train, Y_train, batch_size=512, epochs=25, validation_split=0.1,callbacks=my_callbacks))
         fin = time.time()
         t = fin - ini
         test_scores = model.evaluate(X_test, Y_test, verbose=2)
         print("Test loss:", test_scores[0])
         print("Test accuracy:", test_scores[1])
-        Barras.append((test_scores[1],bs,t))
-        
-    plot_Barras(Barras)
+        Barras.append((test_scores[1],t))
+
+    plot_Barras(
+        Barras,
+        num_neuronas,
+        nombre_parametro="neuronas_capa_1xneuronas_capa_2",
+        titulo="acierto y tiempo con dos capas"
+    )
     #plot_Historys(Historys)
+    
     
 if __name__ == "__main__": main()
