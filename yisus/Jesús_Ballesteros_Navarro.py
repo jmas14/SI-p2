@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import keras
 from keras import layers, models, callbacks
+from keras import regularizers
+from keras.callbacks import ReduceLROnPlateau 
 import time
 ###################################################
 #           Funciones auxiliares
@@ -449,7 +451,7 @@ def entrenamiento_arquitectura(X_train, Y_train, X_test, Y_test, arquitectura, a
     for rep in range(num_repeticiones):
         # Crear modelo con arquitectura parametrizada
         model = keras.Sequential()
-        
+ 
         # Primera capa
         model.add(layers.Dense(arquitectura[0], activation=activation, input_shape=(3072,)))
         
@@ -460,6 +462,8 @@ def entrenamiento_arquitectura(X_train, Y_train, X_test, Y_test, arquitectura, a
         # Capa de salida
         model.add(layers.Dense(10, activation="softmax"))
         
+        model.summary()
+
         model.compile(
             optimizer="adam",
             loss="categorical_crossentropy",
@@ -687,7 +691,7 @@ def mlp6():
     
     mejor_patience = 5         
     mejor_batch_size = 128     
-    mejor_activation = 'relu'   
+    mejor_activation = 'elu'   
     
     resultados = []
     
@@ -716,8 +720,28 @@ def mlp7():
     mejor_patience = 5              
     mejor_batch_size = 128          
     mejor_activation = 'elu'        
-    mejor_arquitectura = [256, 128] 
- 
+    
+    # Arquitecturasa probar :
+    #mejor_arquitectura = [256, 128, 64]  # Total: 448 - Mejor mlp6
+    
+    # 4 capas
+    mejor_arquitectura = [512, 256, 128, 64]        # Total: 960 neuronas - Piramidal 
+    #mejor_arquitectura = [384, 256, 128, 64]        # Total: 832 neuronas - Balanceada
+    #mejor_arquitectura = [400, 300, 200, 100]       # Total: 1000 neuronas - Uso máximo
+    #mejor_arquitectura = [256, 256, 256, 128]       # Total: 896 neuronas - Capas uniformes
+    
+    # 5-6 capas
+    #mejor_arquitectura = [256, 192, 128, 96, 64]    # Total: 736 neuronas - Embudo suave (Disminución pequeña de neuronas por capa)
+    #mejor_arquitectura = [384, 256, 128, 64, 32]    # Total: 864 neuronas - Embudo agresivo (Disminución grande de neuronas por capas)
+    #mejor_arquitectura = [200, 180, 160, 140, 120, 100]  # Total: 900 neuronas - 6 capas graduales
+    
+    # --- ARQUITECTURAS EXPERIMENTALES ---
+    #mejor_arquitectura = [600, 300, 100]            # Total: 1000 - Piramidal agresiva
+    #mejor_arquitectura = [128, 256, 256, 256]              
+    
+    dropout_rate = 0.1        # % de neuronas a apagar 
+    l2_lambda = 0.000001          
+     
     X_train, Y_train, X_test, Y_test = cargar_y_preprocesar_cifar10()
 
     num_repeticiones = 5
@@ -732,16 +756,33 @@ def mlp7():
         model = keras.Sequential()
         
         # Primera capa
-        model.add(layers.Dense(mejor_arquitectura[0], activation=mejor_activation, input_shape=(3072,)))
-        
+        model.add(layers.Dense(
+            mejor_arquitectura[0], 
+            activation=mejor_activation,
+            kernel_initializer='he_normal',
+            kernel_regularizer=regularizers.l2(l2_lambda),
+            input_shape=(3072,)
+        ))
+
+        model.add(layers.Dropout(0.1))
         # Capas ocultas adicionales
-        for n in mejor_arquitectura[1:]:
-            model.add(layers.Dense(n, activation=mejor_activation))
+        for i, n in enumerate(mejor_arquitectura[1:]):
+            model.add(layers.Dense(
+                n, 
+                activation=mejor_activation,
+                kernel_initializer='he_normal',
+                kernel_regularizer=regularizers.l2(l2_lambda)
+            ))
+            
+            # Reducir dropout en capas finales (0.3 → 0.21)
+            rate = dropout_rate if i < len(mejor_arquitectura) - 2 else dropout_rate * 0.7
+            model.add(layers.Dropout(rate))
         
         # Capa de salida
         model.add(layers.Dense(10, activation="softmax"))
         
-        model.summary()
+        if rep == 0:
+            model.summary()
 
         model.compile(
             optimizer="adam",
@@ -756,13 +797,21 @@ def mlp7():
             verbose=1
         )
         
+        reduce_lr = callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.5,
+            patience=5,
+            min_lr=1e-6,
+            verbose=1
+        )
+
         inicio = time.time()
         history = model.fit(
             X_train, Y_train,
             batch_size=mejor_batch_size,
             epochs=100,
             validation_split=0.1,
-            callbacks=[early_stop],
+            callbacks=[early_stop, reduce_lr],
             verbose=1
         )
         tiempo = time.time() - inicio
@@ -818,6 +867,94 @@ def mlp7():
     Y_pred = model.predict(X_test, verbose=0)
     plot_confusion_matrix(Y_test, Y_pred)
 
+################################################################
+#                            CNN
+################################################################
+def cnn1():
+    (X_train, Y_train), (X_test, Y_test) = keras.datasets.cifar10.load_data()
+
+    X_train = X_train.astype("float32") / 255.0
+    X_test = X_test.astype("float32") / 255.0
+    
+    Y_train = keras.utils.to_categorical(Y_train, 10)
+    Y_test = keras.utils.to_categorical(Y_test, 10)
+
+    num_repeticiones = 5
+    test_accs = []
+    test_losses = []
+    epochs_trained = []
+    tiempos = []
+    all_histories = []
+    
+    for rep in range(num_repeticiones):
+        model = keras.Sequential([
+            layers.Input(shape=(32, 32, 3)),
+            
+            # Bloque 1
+            layers.Conv2D(16, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same'),
+            layers.MaxPooling2D((2, 2)),
+            
+            # Bloque 2
+            layers.Conv2D(32, (3, 3), activation='relu',kernel_initializer='he_normal', padding='same'),
+            layers.MaxPooling2D((2, 2)),
+            
+            # Flatten + Dense
+            layers.Flatten(),
+            layers.Dense(100, activation='relu', kernel_initializer='he_normal'),
+            layers.Dense(10, activation='softmax')
+        ])
+        
+        if rep == 0:
+            model.summary()
+        
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        early_stop = callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            restore_best_weights=True,
+            verbose=1
+        )
+        
+        inicio = time.time()
+        history = model.fit(
+            X_train, Y_train,
+            batch_size=128,
+            epochs=100,
+            validation_split=0.1,
+            callbacks=[early_stop],
+            verbose=1
+        )
+        tiempo = time.time() - inicio
+        
+        test_loss, test_acc = model.evaluate(X_test, Y_test, verbose=0)
+        test_accs.append(test_acc)
+        test_losses.append(test_loss)
+        epochs_trained.append(len(history.history['loss']))
+        tiempos.append(tiempo)
+        all_histories.append(history.history)
+
+    avg_test_acc = np.mean(test_accs)
+    std_test_acc = np.std(test_accs)
+    avg_test_loss = np.mean(test_losses)
+    avg_epochs = np.mean(epochs_trained)
+    avg_tiempo = np.mean(tiempos)
+    avg_history = promediar_histories(all_histories)
+    
+    plot_history(avg_history)
+    Y_pred = model.predict(X_test, verbose=0)
+    plot_confusion_matrix(Y_test, Y_pred)
+    
+    return model, avg_history
+def cnn2():
+
+def cnn3():
+
+
 #main
 if __name__ == "__main__":
     cargar_y_preprocesar_cifar10()
@@ -829,6 +966,8 @@ if __name__ == "__main__":
     print("5: MLP5")
     print("6: MLP6")
     print("7: MLP7")
+    print("8: CNN1")
+    print("9: CNN2")
     
     eleccion = input("Opción:")
     match eleccion:
@@ -846,5 +985,11 @@ if __name__ == "__main__":
             mlp6()
         case '7':
             mlp7()
+        case '8':
+            cnn1()
+        case '9':
+            cnn2()
+        case '10':
+            cnn3()
         case _:
             print(f"Opción '{eleccion}' no reconocida.")
