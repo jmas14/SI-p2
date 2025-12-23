@@ -794,6 +794,83 @@ def cnn2(X_train, X_test, Y_train, Y_test, n_runs=1, epochs=25):
         titulo="Accuracy y tiempo con diferentes kernels"
     )
 
+def cnn3(X_train, X_test, Y_train, Y_test):
+
+    # Arquitecturas a comparar
+    # Cada número representa el nº de filtros de una capa Conv2D
+    arquitecturas = {
+        "16-32": [16, 32],
+        "32-64": [32, 64],
+        "32-32-64": [32, 32, 64],
+        "32-64-128": [32, 64, 128],
+        "16-32-64-128": [16, 32, 64, 128]
+    }
+
+    batch_size = 64
+    epochs = 50
+
+    resultados = []
+
+    for nombre, filtros in arquitecturas.items():
+
+        print(f"\nEntrenando arquitectura CNN: {nombre}")
+        print(f"Filtros Conv2D: {filtros}")
+
+        keras.backend.clear_session()
+
+        model = keras.Sequential()
+        model.add(layers.Input(shape=(32, 32, 3)))
+
+        # --- Capas convolucionales ---
+        for f in filtros:
+            model.add(layers.Conv2D(
+                filters=f,
+                kernel_size=(3, 3),
+                padding="same",              # CLAVE para evitar errores
+                activation="relu",
+                kernel_initializer="he_normal"
+            ))
+            model.add(layers.MaxPooling2D(pool_size=(2, 2)))
+
+        # --- Clasificador ---
+        model.add(layers.Flatten())
+        model.add(layers.Dense(128, activation="relu"))
+        model.add(layers.Dense(10, activation="softmax"))
+
+        model.compile(
+            optimizer="Adam",
+            loss="categorical_crossentropy",
+            metrics=["accuracy"]
+        )
+
+        # Entrenamiento
+        ini = time.time()
+        history = model.fit(
+            X_train,
+            Y_train,
+            batch_size=batch_size,
+            epochs=epochs,
+            validation_split=0.1,
+            verbose=0
+        )
+        fin = time.time()
+
+        # Evaluación
+        test_loss, test_acc = model.evaluate(X_test, Y_test, verbose=0)
+
+        resultados.append((test_acc, fin - ini))
+
+        print(f"Test accuracy: {test_acc:.4f}")
+        print(f"Tiempo entrenamiento: {fin - ini:.2f}s")
+        print(f"Épocas entrenadas: {len(history.history['loss'])}")
+
+    # Gráfica comparativa
+    plot_Barras(
+        resultados,
+        arquitecturas.keys(),
+        f_parametro="arquitecturas CNN",
+        titulo="CNN3: accuracy y tiempo según arquitectura"
+    )
     
 def main():
     
@@ -814,8 +891,8 @@ def main():
     #tarea_7(X_train, X_test, Y_train, Y_test)
     X_train, X_test, Y_train, Y_test = cargar_y_preprocesar_cifar10_cnn()
     #cnn1(X_train, X_test, Y_train, Y_test)
-    cnn2(X_train, X_test, Y_train, Y_test)
-    
+    #cnn2(X_train, X_test, Y_train, Y_test)
+    cnn3(X_train, X_test, Y_train, Y_test)
     
 
 if __name__ == "__main__": 
